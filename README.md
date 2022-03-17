@@ -19,6 +19,7 @@ Run all cells in ./hw1/hw1.ipynb
 
 **Clustering Result:**
 
+<<<<<<< HEAD
 ![clustering](image\clustering.png)
 
 ---
@@ -34,3 +35,6 @@ sklearn
 **How to use:**
 
 Run all cells in ./hw2/hw2.ipynb
+=======
+![clustering](image/clustering.png)
+>>>>>>> b9c16fb5e81ca0b17eaf8cf1bc0835e89c6a81b7
