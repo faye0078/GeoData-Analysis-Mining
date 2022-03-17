@@ -32,5 +32,5 @@ sklearn
 **How to use:**
 
 Run all cells in ./hw2/hw2.ipynb
-
-
+[100 Sports Image Classification](https://www.kaggle.com/gpiosenka/sports-classification)
+[read dataset](https://www.kaggle.com/edanurb/pytorch-model-99-acc)
