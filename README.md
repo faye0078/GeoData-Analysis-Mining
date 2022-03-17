@@ -15,8 +15,22 @@ numpy pytorch sklearn matplotlib pandas
 ```
 **How to use:**
 
-Run all cells in hw1.ipynb
+Run all cells in ./hw1/hw1.ipynb
 
 **Clustering Result:**
 
 ![clustering](image\clustering.png)
+
+---
+## Homework 2
+Classify(KNN & Decision tree).
+
+Dataset: []()
+
+**Dependence:**
+```
+sklearn
+```
+**How to use:**
+
+Run all cells in ./hw2/hw2.ipynb
