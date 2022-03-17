@@ -19,7 +19,7 @@ Run all cells in ./hw1/hw1.ipynb
 
 **Clustering Result:**
 
-![clustering](image\clustering.png)
+![clustering](image/clustering.png)
 ## Homework 2
 Classify(KNN & Decision tree).
 
