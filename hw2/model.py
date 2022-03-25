@@ -2,10 +2,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision import models
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.decomposition import PCA
 from collections import OrderedDict
-from utils import minValue
+from utils import minValue, acc_cal
 class KNN():
     # using distance weight
     def __init__(self, k):
@@ -33,90 +34,30 @@ class KNN():
         
         return max(classes_weight, key=classes_weight.get)
 
-class LinearBottleNeck(nn.Module):
 
-    def __init__(self, in_channels, out_channels, stride, t=6, class_num=100):
+class ImageClassificationBase(nn.Module):
+
+    def train_step(self, x, y):
+        preds = self(x)
+        loss = F.cross_entropy(preds, y)
+        return loss
+
+    def val_step(self, x, y):
+        preds = self(x)
+        loss = F.cross_entropy(preds, y)
+        acc = acc_cal(preds, y)
+        return {'val_acc': acc.item(), 'val_loss': loss}
+
+class SportsClassification(ImageClassificationBase):
+    def __init__(self, output_size, pretrained=True):
         super().__init__()
-
-        self.residual = nn.Sequential(
-            nn.Conv2d(in_channels, in_channels * t, 1),
-            nn.BatchNorm2d(in_channels * t),
-            nn.ReLU6(inplace=True),
-
-            nn.Conv2d(in_channels * t, in_channels * t, 3, stride=stride, padding=1, groups=in_channels * t),
-            nn.BatchNorm2d(in_channels * t),
-            nn.ReLU6(inplace=True),
-
-            nn.Conv2d(in_channels * t, out_channels, 1),
-            nn.BatchNorm2d(out_channels)
-        )
-
-        self.stride = stride
-        self.in_channels = in_channels
-        self.out_channels = out_channels
+        self.model = models.resnet50(pretrained=pretrained)
+        # split
+        self.model.fc = nn.Linear(self.model.fc.in_features, output_size)
 
     def forward(self, x):
-
-        residual = self.residual(x)
-
-        if self.stride == 1 and self.in_channels == self.out_channels:
-            residual += x
-
-        return residual
-
-class MobileNetV2(nn.Module):
-
-    def __init__(self, class_num=10):
-        super().__init__()
-
-        self.pre = nn.Sequential(
-            nn.Conv2d(1, 32, 1, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU6(inplace=True)
-        )
-
-        self.stage1 = LinearBottleNeck(32, 16, 1, 1)
-        self.stage2 = self._make_stage(2, 16, 24, 2, 6)
-        self.stage3 = self._make_stage(3, 24, 32, 2, 6)
-        self.stage4 = self._make_stage(4, 32, 64, 2, 6)
-        self.stage5 = self._make_stage(3, 64, 96, 1, 6)
-        self.stage6 = self._make_stage(3, 96, 160, 1, 6)
-        self.stage7 = LinearBottleNeck(160, 320, 1, 6)
-
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(320, 1280, 1),
-            nn.BatchNorm2d(1280),
-            nn.ReLU6(inplace=True)
-        )
-
-        self.conv2 = nn.Conv2d(1280, class_num, 1)
-
-    def forward(self, x):
-        x = self.pre(x)
-        x = self.stage1(x)
-        x = self.stage2(x)
-        x = self.stage3(x)
-        x = self.stage4(x)
-        x = self.stage5(x)
-        x = self.stage6(x)
-        x = self.stage7(x)
-        x = self.conv1(x)
-        x = F.adaptive_avg_pool2d(x, 1)
-        x = self.conv2(x)
-        x = x.view(x.size(0), -1)
-
-        return x
-
-    def _make_stage(self, repeat, in_channels, out_channels, stride, t):
-
-        layers = []
-        layers.append(LinearBottleNeck(in_channels, out_channels, stride, t))
-
-        while repeat - 1:
-            layers.append(LinearBottleNeck(out_channels, out_channels, 1, t))
-            repeat -= 1
-
-        return nn.Sequential(*layers)
+        out = self.model(x)
+        return out
 
 def get_PCA(length):
     return PCA(n_components=length)
@@ -128,8 +69,8 @@ def get_KNN(type, k):
     elif type == 'sklearn':
         return KNeighborsClassifier(k, weights='distance')
 
-def mobilenetv2():
-    return MobileNetV2()
+def resnet50(output_size):
+    return SportsClassification(output_size)
 
 
 

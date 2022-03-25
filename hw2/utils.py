@@ -1,10 +1,14 @@
 import numpy as np
 import os
 import torch
+import random
+from matplotlib.pylab import plt
 from PIL import Image
-from torchvision.datasets import ImageFolder 
+from torchvision.datasets import ImageFolder
+from tqdm.notebook import tqdm
 from torchvision import transforms as T
 from torch.utils.data import DataLoader
+from torch import nn
 class minValue():
     def __init__(self, min_num):
         self.min_values = np.zeros(min_num)
@@ -32,12 +36,116 @@ def get_sport_dataloader(batch_size):
     v_trans=T.Compose([
                     T.ToTensor(),
                     T.Normalize(mean,std)])
-    train_set=ImageFolder('../dataset/sports_dataset/train',transform=t_trans)
-    val_set=ImageFolder('../dataset/sports_dataset/valid',transform=v_trans)
-    test_set=ImageFolder("../dataset/sports_dataset/test",transform=v_trans)
+    train_set=ImageFolder('../dataset/sport_dataset/train',transform=t_trans)
+    val_set=ImageFolder('../dataset/sport_dataset/valid',transform=v_trans)
+    test_set=ImageFolder("../dataset/sport_dataset/test",transform=v_trans)
     print(len(train_set),len(val_set), len(test_set))
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=False)
-    val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
-    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
 
-    return train_loader, val_loader, test_loader
+    return train_loader, val_loader, test_loader, train_set.classes
+
+def print_get_acc_loss(epoch, acc_list, loss_list):
+    acc = sum(acc_list) / len(acc_list)
+    loss = sum(loss_list) / len(loss_list)
+    print("Epoch[{}]: vall_acc:{}  val_loss:{}".format(epoch, acc, loss))
+    return {'val_loss': loss, 'val_acc': acc}
+
+def acc_cal(preds, y):
+    _, output = torch.max(preds, dim=1)
+    return torch.sum(y == output) / len(output)
+
+
+def fit(model, epoch_size, max_lr, train_loader, val_loader, weight_decay=0.01,
+        grad_clip=None, opt_func=torch.optim.SGD):
+    torch.cuda.empty_cache()
+    opt = opt_func(model.parameters(), max_lr, weight_decay=weight_decay)
+    lr_schedule = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr, epochs=epoch_size,
+                                                      steps_per_epoch=len(train_loader))
+    history = []
+    for epoch in range(epoch_size):
+        acc_list = []
+        loss_list = []
+        # train
+        model.train()
+
+        train_tbar = tqdm(train_loader)
+        for x, y in train_tbar:
+            loss = model.train_step(x.cuda(), y.cuda())
+            loss.backward()
+            if grad_clip:
+                nn.utils.clip_grad_value_(model.parameters(), grad_clip)
+            opt.step()
+            opt.zero_grad()
+            lr_schedule.step()
+
+        val_tbar = tqdm(val_loader)
+        for x, y in val_tbar:
+            with torch.no_grad():
+                values = model.val_step(x.cuda(), y.cuda())
+
+            acc_list.append(values['val_acc'])
+            loss_list.append(values['val_loss'])
+
+
+        history.append(print_get_acc_loss(epoch, acc_list, loss_list))
+
+    return history
+
+def transform_test(img):
+    std=torch.Tensor([0.4687, 0.4667, 0.4540])
+    mean=torch.Tensor([0.2792, 0.2717, 0.2852])
+    v_trans=T.Compose([
+                    T.ToTensor(),
+                    T.Normalize(mean,std)])
+    img= v_trans(img)
+    return img.unsqueeze(0)
+
+
+def make_pred_my(img, model, classes):
+  with torch.no_grad():
+    probs=model(img.cuda())
+  _,pred=torch.max(probs,dim=1)
+  pred=classes[pred.item()]
+  return {'prediction':pred}
+  
+def plot_preds_my(model, imgs, classes):
+    fig=plt.figure(figsize=(20,16))
+    for i, img in enumerate(imgs):
+      i+=1
+      pred=make_pred(img, model, classes)
+      ax = fig.add_subplot(4, 1, i)
+      ax.set_xticks([])
+      ax.set_yticks([])
+      img = img.squeeze()
+      plt.imshow(img.permute(1,2,0))
+      ax.set_title("pred: {} ".format(pred['prediction']))
+
+def plot_preds(test_set, model):
+    rand_list = random.sample(range(1, len(test_set)), 16)
+    fig=plt.figure(figsize=(20,16))
+    axis=1
+    for i in rand_list:
+      pred=make_pred(test_set,i,model)
+      ax = fig.add_subplot(4,4, axis)
+      ax.set_xticks([])
+      ax.set_yticks([])
+      img,_=test_set[i]
+      plt.imshow(denorm(img).permute(1,2,0))
+      axis+=1
+      ax.set_title("label: {} \n pred: {} ".format(pred['label'],pred['prediction']))
+    
+def make_pred(data,i,model):
+  img, label = data[i]
+  img=img.unsqueeze(0).cuda()
+  with torch.no_grad():
+    probs=model(img)
+  _,pred=torch.max(probs,dim=1)
+  pred=data.classes[pred.item()]
+  return {'label':data.classes[label],'prediction':pred}
+
+def denorm(img):
+    std=torch.Tensor([0.4687, 0.4667, 0.4540])
+    mean=torch.Tensor([0.2792, 0.2717, 0.2852])
+    return img*std[0]+mean[0]
