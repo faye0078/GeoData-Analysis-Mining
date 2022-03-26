@@ -21,16 +21,23 @@ Run all cells in ./hw1/hw1.ipynb
 
 ![clustering](image/clustering.png)
 ## Homework 2
-Classify(KNN & Decision tree).
 
-Dataset: []()
+Classify(KNN & CNN).
+
+Dataset: [100 Sports Image Classification](https://www.kaggle.com/gpiosenka/sports-classification)
 
 **Dependence:**
+
 ```
-sklearn
+numpy pytorch sklearn matplotlib pandas PIL torchvision
 ```
+
 **How to use:**
 
-Run all cells in ./hw2/hw2.ipynb
-[100 Sports Image Classification](https://www.kaggle.com/gpiosenka/sports-classification)
-[read dataset](https://www.kaggle.com/edanurb/pytorch-model-99-acc)
+* Download the dataset, and move it to folder dataset
+* Run all cells in ./hw2/hw2.ipynb
+
+**CNN  Classify Result:**
+
+![clustering](image/CNN.png)
+
