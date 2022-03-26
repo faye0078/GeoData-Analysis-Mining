@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 from torch import nn
 class minValue():
     def __init__(self, min_num):
-        self.min_values = np.zeros(min_num)
+        self.min_values = 100000 * np.ones(min_num)
         self.min_indexes= np.array([None]*min_num)
 
     def update(self, n_value, n_index):
@@ -55,7 +55,6 @@ def print_get_acc_loss(epoch, acc_list, loss_list):
 def acc_cal(preds, y):
     _, output = torch.max(preds, dim=1)
     return torch.sum(y == output) / len(output)
-
 
 def fit(model, epoch_size, max_lr, train_loader, val_loader, weight_decay=0.01,
         grad_clip=None, opt_func=torch.optim.SGD):
@@ -102,7 +101,6 @@ def transform_test(img):
     img= v_trans(img)
     return img.unsqueeze(0)
 
-
 def make_pred_my(img, model, classes):
   with torch.no_grad():
     probs=model(img.cuda())
@@ -110,42 +108,45 @@ def make_pred_my(img, model, classes):
   pred=classes[pred.item()]
   return {'prediction':pred}
   
-def plot_preds_my(model, imgs, classes):
+def plot_preds_my(model, imgs, classes, path):
     fig=plt.figure(figsize=(20,16))
     for i, img in enumerate(imgs):
+      label = path[i].split('/')[-1].replace('.jpg', '')
       i+=1
-      pred=make_pred(img, model, classes)
-      ax = fig.add_subplot(4, 1, i)
+      pred=make_pred_my(img, model, classes)
+      ax = fig.add_subplot(1, 4, i)
       ax.set_xticks([])
       ax.set_yticks([])
       img = img.squeeze()
       plt.imshow(img.permute(1,2,0))
-      ax.set_title("pred: {} ".format(pred['prediction']))
-
-def plot_preds(test_set, model):
-    rand_list = random.sample(range(1, len(test_set)), 16)
-    fig=plt.figure(figsize=(20,16))
-    axis=1
-    for i in rand_list:
-      pred=make_pred(test_set,i,model)
-      ax = fig.add_subplot(4,4, axis)
-      ax.set_xticks([])
-      ax.set_yticks([])
-      img,_=test_set[i]
-      plt.imshow(denorm(img).permute(1,2,0))
-      axis+=1
-      ax.set_title("label: {} \n pred: {} ".format(pred['label'],pred['prediction']))
-    
-def make_pred(data,i,model):
-  img, label = data[i]
-  img=img.unsqueeze(0).cuda()
-  with torch.no_grad():
-    probs=model(img)
-  _,pred=torch.max(probs,dim=1)
-  pred=data.classes[pred.item()]
-  return {'label':data.classes[label],'prediction':pred}
+      ax.set_title("label: {}  \npred: {} ".format(label, pred['prediction']))
 
 def denorm(img):
     std=torch.Tensor([0.4687, 0.4667, 0.4540])
     mean=torch.Tensor([0.2792, 0.2717, 0.2852])
     return img*std[0]+mean[0]
+
+def get_class(num, class_dict):
+    for index in class_dict:
+        if class_dict[index] == int(num):
+            return index
+    
+def plot_preds_knn(path, class_dict, PCA, KNN):
+    img1 = np.asarray(Image.open(path[0]).convert('L').resize([224, 224])) / 255.0
+    img2 = np.asarray(Image.open(path[1]).convert('L').resize([224, 224])) / 255.0
+    img3 = np.asarray(Image.open(path[2]).convert('L').resize([224, 224])) / 255.0
+    img4 = np.asarray(Image.open(path[3]).convert('L').resize([224, 224])) / 255.0
+    imgs = [img1, img2, img3, img4]
+    fig=plt.figure(figsize=(20,16))
+
+    for i, img in enumerate(imgs):
+        features = PCA.fit_transform(img)
+        pred = KNN.predict(features)
+        pred = get_class(pred, class_dict)
+        ax = fig.add_subplot(1, 4, i+1)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        img = img.squeeze()
+        plt.imshow(Image.open(path[i]).resize([224, 224]))
+        label = path[i].split('/')[-1].replace('.jpg','')
+        ax.set_title("label: {} \n pred: {} ".format(label, pred))

@@ -15,10 +15,11 @@ class KNN():
     def fit(self, X, y):
         self.X = X
         self.y = y
-    def predcit(self, input):
+    def predict(self, input):
         min_value = minValue(self.k_num)
+        input = input.squeeze()
         for i, sample in enumerate(self.X):
-            dist = np.sqrt(np.square(sample - input))
+            dist = np.sqrt(np.sum((np.square(sample - input))))
             min_value.update(dist, i)
 
         values = min_value.min_values
@@ -30,16 +31,16 @@ class KNN():
 
         tmp = []
         for u_class in u_classes:
-            classes_weight[u_class] = values[classes == u_class].sum()
+            classes_weight[u_class] = (1 / values[(classes == u_class).squeeze()]).sum()
         
         return max(classes_weight, key=classes_weight.get)
-
 
 class ImageClassificationBase(nn.Module):
 
     def train_step(self, x, y):
         preds = self(x)
         loss = F.cross_entropy(preds, y)
+        a = torch.max(preds, dim=1)
         return loss
 
     def val_step(self, x, y):
