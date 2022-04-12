@@ -40,4 +40,23 @@ numpy pytorch sklearn matplotlib pandas PIL torchvision
 **CNN  Classify Result:**
 
 ![clustering](image/CNN.png)
+## Homework 3
+
+Text mining, and NLP.
+
+Dataset: [javaGithub dataset](https://groups.inf.ed.ac.uk/cup/javaGithub/)
+
+**Dependence:**
+
+```
+transformers pytorch fuzzywuzzy
+```
+
+**How to use:**
+
+current version can't run correctly.
+* Download the dataset,
+* Run ipynb
+
+**Result:**
 
